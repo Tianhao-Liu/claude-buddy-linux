@@ -12,7 +12,7 @@ DEFAULTS = {
     "sensitive_tools": ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"],
     "entries_max": 6,
     "entry_text_max": 40,
-    "approval_timeout_s": 120,
+    "approval_timeout_s": 600,
     "keepalive_s": 10,
     "hook_socket_timeout_s": 0.3,
     "serial_port": "/dev/ttyACM0",
