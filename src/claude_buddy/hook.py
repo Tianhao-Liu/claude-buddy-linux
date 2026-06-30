@@ -44,7 +44,7 @@ def _hint_for(tool: str, ti: dict) -> str:
         h = ti.get("notebook_path", "")
     else:
         h = json.dumps(ti, ensure_ascii=False)
-    return " ".join(str(h).split())[:60]
+    return " ".join(str(h).split())[:120]   # device wraps this across lines
 
 
 def _tty(msg: str):
