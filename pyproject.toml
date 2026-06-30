@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claude-buddy"
+version = "0.1.0"
+description = "Linux bridge for the ESP32 Claude desktop buddy (BLE). Re-implements the macOS/Windows Hardware Buddy bridge."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Tianhao" }]
+keywords = ["claude", "ble", "esp32", "bluetooth", "hardware-buddy"]
+dependencies = [
+    "bleak>=0.21",
+]
+
+[project.optional-dependencies]
+# Automatic pairing reads the passkey off the device's USB serial port.
+autopair = ["pyserial>=3.5"]
+
+[project.scripts]
+claude-buddy = "claude_buddy.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/vthinkxie/claude-desktop-buddy-esp32"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+claude_buddy = ["data/*.in"]
