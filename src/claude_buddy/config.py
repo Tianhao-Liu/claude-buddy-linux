@@ -10,8 +10,8 @@ DEFAULTS = {
     "device_name_prefix": "Claude",
     "device_mac": "",
     "sensitive_tools": ["Bash", "Write", "Edit", "MultiEdit", "NotebookEdit"],
-    "entries_max": 6,
-    "entry_text_max": 40,
+    "entries_max": 8,        # device transcript area holds 8 lines
+    "entry_text_max": 82,    # device lines[][92]; "HH:MM " prefix + 82 < 92
     "approval_timeout_s": 600,
     "keepalive_s": 10,
     "hook_socket_timeout_s": 0.3,

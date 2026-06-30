@@ -53,11 +53,13 @@ class Bridge:
         self.pending: dict[str, asyncio.Future] = {}
         self.current_prompt: dict | None = None
         self.prompt_lock = asyncio.Lock()
+        self.ack_waiters: dict[str, asyncio.Future] = {}   # cmd name -> ack future
 
         self.client: BleakClient | None = None
         self.mtu = 20
         self._rxbuf = bytearray()
         self.connected = False
+        self._write_lock = asyncio.Lock()   # serialize BLE writes (no interleave)
 
         self.dirty = asyncio.Event()
         self._last_snapshot = ""
@@ -213,8 +215,9 @@ class Bridge:
         data = (json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8")
         chunk = max(20, self.mtu - 3)
         try:
-            for i in range(0, len(data), chunk):
-                await self.client.write_gatt_char(NUS_RX, data[i:i + chunk], response=True)
+            async with self._write_lock:   # never interleave two writers' chunks
+                for i in range(0, len(data), chunk):
+                    await self.client.write_gatt_char(NUS_RX, data[i:i + chunk], response=True)
         except Exception as e:
             self.log.warning("send failed: %s", e)
 
@@ -233,6 +236,12 @@ class Bridge:
             o = json.loads(raw.decode("utf-8", "replace"))
         except ValueError:
             return
+        # ack to one of our outgoing commands (name/unpair/status/...)
+        if "ack" in o:
+            fut = self.ack_waiters.pop(o["ack"], None)
+            if fut and not fut.done():
+                fut.set_result(o)
+            return
         cmd = o.get("cmd")
         if cmd == "permission":
             fut = self.pending.get(o.get("id"))
@@ -241,6 +250,22 @@ class Bridge:
             return
         if cmd:
             await self.send_obj({"ack": cmd, "ok": True, "n": 0})
+
+    async def _send_cmd(self, obj: dict) -> dict:
+        """Send a command to the device and wait for its matching ack."""
+        if not self.connected:
+            return {"ok": False, "error": "device not connected"}
+        name = obj.get("cmd", "")
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
+        self.ack_waiters[name] = fut
+        try:
+            await self.send_obj(obj)
+            return await asyncio.wait_for(fut, timeout=8.0)
+        except asyncio.TimeoutError:
+            return {"ok": False, "error": "no ack from device"}
+        finally:
+            self.ack_waiters.pop(name, None)
 
     # ---------- hook unix-socket server ----------
     async def _handle_hook(self, reader, writer):
@@ -259,6 +284,10 @@ class Bridge:
             elif req.get("kind") == "prompt":
                 dec = await self._do_prompt(req)
                 writer.write((json.dumps({"decision": dec}) + "\n").encode())
+                await writer.drain()
+            elif req.get("kind") == "cmd":
+                ack = await self._send_cmd(req.get("obj") or {})
+                writer.write((json.dumps(ack) + "\n").encode())
                 await writer.drain()
         except Exception as e:
             self.log.warning("hook handler error: %s", e)

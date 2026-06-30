@@ -4,6 +4,8 @@ Subcommands:
   daemon      run the BLE bridge daemon (used by the systemd service)
   hook        Claude Code hook dispatcher (used by settings.json hooks)
   pair        one-time BLE pairing
+  name        set the device display name (claude-buddy name <name>)
+  unpair      tell the device to erase its bond + drop the host bond
   install     install systemd --user service + Claude Code hooks
   uninstall   remove the service + hooks
   status      show config + service status
@@ -28,6 +30,9 @@ def main(argv=None) -> int:
     if cmd == "pair":
         from . import pair
         return pair.main(rest)
+    if cmd in ("name", "unpair"):
+        from . import cmds
+        return getattr(cmds, cmd)(rest)
     if cmd in ("install", "uninstall", "status"):
         from . import setup_cmd
         return getattr(setup_cmd, cmd)(rest)
