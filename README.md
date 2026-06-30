@@ -1,5 +1,7 @@
 # claude-buddy
 
+[![CI](https://github.com/Tianhao-Liu/claude-buddy-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianhao-Liu/claude-buddy-linux/actions/workflows/ci.yml)
+
 Linux bridge for the **ESP32 Claude desktop buddy**. Re-implements the
 macOS/Windows *Hardware Buddy* bridge: connects to the device over BLE, pushes
 live Claude Code session state, and relays tool-permission decisions made on the
