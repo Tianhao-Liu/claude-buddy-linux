@@ -47,12 +47,26 @@ def _hint_for(tool: str, ti: dict) -> str:
     return " ".join(str(h).split())[:60]
 
 
-def _emit(decision: str, reason: str):
-    print(json.dumps({"hookSpecificOutput": {
+def _tty(msg: str):
+    """Best-effort write to the user's terminal so the CLI side also shows
+    the prompt status (the device is the actual decision point)."""
+    try:
+        with open("/dev/tty", "w") as t:
+            t.write(msg)
+            t.flush()
+    except Exception:
+        pass
+
+
+def _emit(decision: str, reason: str, system_msg: str | None = None):
+    out = {"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": decision,
         "permissionDecisionReason": reason,
-    }}))
+    }}
+    if system_msg:
+        out["systemMessage"] = system_msg
+    print(json.dumps(out))
 
 
 def main(argv=None) -> int:
@@ -71,16 +85,22 @@ def main(argv=None) -> int:
         tool = data.get("tool_name", "")
         if tool not in cfg.get("sensitive_tools", []):
             return 0
-        req = {"kind": "prompt", "session_id": sid, "tool": tool,
-               "hint": _hint_for(tool, data.get("tool_input", {}))}
+        hint = _hint_for(tool, data.get("tool_input", {}))
+        req = {"kind": "prompt", "session_id": sid, "tool": tool, "hint": hint}
+        _tty(f"\n⏳ buddy: approve {tool}? — {hint}\n   (Key1 = approve, Key3 = deny on the device)\n")
         reply = _send_recv(req, timeout=cfg["approval_timeout_s"] + 10)
         if not reply:
+            _tty("⚠️  buddy: no response — falling back to the normal prompt.\n")
             return 0
         dec = reply.get("decision")
         if dec == "allow":
-            _emit("allow", "approved on buddy device")
+            _tty("✅ buddy: approved.\n")
+            _emit("allow", "approved on buddy device", "✅ approved on buddy device")
         elif dec == "deny":
-            _emit("deny", "denied on buddy device")
+            _tty("🚫 buddy: denied.\n")
+            _emit("deny", "denied on buddy device", "🚫 denied on buddy device")
+        else:
+            _tty("↩︎ buddy: deferred — falling back to the normal prompt.\n")
         return 0
 
     ev_map = {
